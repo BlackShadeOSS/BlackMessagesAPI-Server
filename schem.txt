@@ -6,12 +6,12 @@ USE blackmessagesDS;
 CREATE TABLE IF NOT EXISTS users (
   username TEXT PRIMARY KEY,
   pin_hash TEXT,
-  device_id TEXT
+  device_id UUID
 );
 
 CREATE TABLE IF NOT EXISTS devices (
-  device_id TEXT PRIMARY KEY,
-  transaction_key TEXT 
+  device_id UUID PRIMARY KEY,
+  transaction_key UUID 
 );
 
 CREATE TABLE IF NOT EXISTS messages (
@@ -24,7 +24,7 @@ longitude DOUBLE
 );
 
 CREATE TABLE IF NOT EXISTS current_localizations (
-  device_id TEXT PRIMARY KEY,
+  device_id UUID PRIMARY KEY,
   latitude DOUBLE,
   longitude DOUBLE,
   timestamp TIMESTAMP 

@@ -1,0 +1,16 @@
+{
+  "name": "blackmessagesapi-server",
+  "module": "index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@types/dotenv": "^8.2.0",
+    "cassandra-driver": "^4.7.2",
+    "dotenv": "^16.4.5"
+  }
+}

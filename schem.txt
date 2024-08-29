@@ -1,0 +1,24 @@
+CREATE KEYSPACE IF NOT EXISTS blackmessagesDS
+WITH replication = {'class': 'NetworkTopologyStrategy', 'replication_factor' : 3} AND durable_writes = true;
+
+USE blackmessagesDS;
+
+CREATE TABLE IF NOT EXISTS users (
+  username TEXT PRIMARY KEY,
+  pin_hash TEXT,
+  device_id TEXT
+);
+
+CREATE TABLE IF NOT EXISTS devices (
+  device_id TEXT PRIMARY KEY,
+  transaction_key TEXT 
+);
+
+CREATE TABLE IF NOT EXISTS messages (
+message_id UUID PRIMARY KEY,
+sender TEXT,
+message_content TEXT,
+timestamp TIMESTAMP,
+latitude DOUBLE,
+longitude DOUBLE
+);

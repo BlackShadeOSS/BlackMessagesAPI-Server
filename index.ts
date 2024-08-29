@@ -7,8 +7,13 @@ dotenv.config();
 
 let client: cassandra.Client; // Storing the client globally
 
-async function createMessage(sender: string, message: string, timestamp: number, latitude: number, longitude: number) {
+export async function createMessage(sender: string, message: string, timestamp: number, latitude: number, longitude: number) {
   try {
+    // Validate input data
+    if (!sender || !message || !timestamp || isNaN(latitude) || isNaN(longitude)) {
+      return new Response('Invalid message data', { status: 400 }); // Bad Request
+    }
+
     const query = `
     INSERT INTO messages (sender, message_content, timestamp, latitude, longitude)
     VALUES (?, ?, ?, ?, ?);
@@ -32,8 +37,13 @@ function generateRandomUsername(): string {
 }
 
 
-async function createUser(pinHash: string) {
+export async function createUser(pinHash: string) {
   try {
+    // Validate input data
+    if (!pinHash) {
+      return new Response('Invalid user data', { status: 400 }); // Bad Request
+    }
+
     const username = generateRandomUsername();
     const deviceId = randomUUID(); // Generate a UUID for deviceId
 
@@ -63,8 +73,13 @@ async function createUser(pinHash: string) {
 }
 
 
-async function loginUser(deviceId: string, pinHash: string) {
+export async function loginUser(deviceId: string, pinHash: string) {
   try {
+    // Validate input data
+    if (!deviceId || !pinHash) {
+      return new Response('Invalid login data', { status: 400 }); // Bad Request
+    }
+
     // Fetch user based on device ID
     const userQuery = 'SELECT * FROM users WHERE device_id = ?';
     const userResult = await client.execute(userQuery, [deviceId]);
@@ -97,6 +112,117 @@ async function loginUser(deviceId: string, pinHash: string) {
   }
 }
 
+export async function updateLocalization(deviceId: string, latitude: number, longitude: number) {
+  try {
+    // Validate input data
+    if (!deviceId || isNaN(latitude) || isNaN(longitude)) {
+      return new Response('Invalid localization data', { status: 400 }); // Bad Request
+    }
+
+    const timestamp = Date.now(); // Get current timestamp in milliseconds
+
+    // Check if a localization for the device already exists
+    const existingLocalizationQuery = 'SELECT * FROM current_localizations WHERE device_id = ?';
+    const existingLocalizationResult = await client.execute(existingLocalizationQuery, [deviceId]);
+
+    if (existingLocalizationResult.rows.length > 0) {
+      // Update existing localization
+      const updateQuery = `
+        UPDATE current_localizations 
+        SET latitude = ?, longitude = ?, timestamp = ?
+        WHERE device_id = ?
+      `;
+      await client.execute(updateQuery, [latitude, longitude, timestamp, deviceId]);
+    } else {
+      // Insert new localization
+      const insertQuery = `
+        INSERT INTO current_localizations (device_id, latitude, longitude, timestamp)
+        VALUES (?, ?, ?, ?)
+      `;
+      await client.execute(insertQuery, [deviceId, latitude, longitude, timestamp]);
+    }
+
+    return new Response('Localization updated successfully', { status: 200 });
+  } catch (error) {
+    console.error('Error updating localization:', error);
+    return new Response('Failed to update localization', { status: 500 });
+  }
+}
+
+export async function getMessages(deviceId: string, transactionKey: string): Promise<Response> {
+  try {
+    // Validate input data
+    if (!deviceId || !transactionKey) {
+      return new Response('Invalid request data', { status: 400 }); // Bad Request
+    }
+
+    // 1. Authenticate the device and transaction key
+    const deviceQuery = 'SELECT * FROM devices WHERE device_id = ? AND transaction_key = ?';
+    const deviceResult = await client.execute(deviceQuery, [deviceId, transactionKey]);
+
+    if (deviceResult.rows.length === 0) {
+      return new Response('Invalid device ID or transaction key', { status: 401 }); // Unauthorized
+    }
+
+    // 2. Fetch localization for the device
+    const localizationQuery = 'SELECT * FROM current_localizations WHERE device_id = ?';
+    const localizationResult = await client.execute(localizationQuery, [deviceId]);
+
+    if (localizationResult.rows.length === 0) {
+      return new Response('Device localization not found', { status: 404 });
+    }
+
+    const deviceLocalization = localizationResult.rows[0];
+    const deviceLatitude = deviceLocalization.latitude;
+    const deviceLongitude = deviceLocalization.longitude;
+
+    // 3. Fetch messages near the device location
+    const range = getQueryRange(deviceLatitude, deviceLongitude, 0.5); // 500m radius
+    const messagesQuery = `
+      SELECT * FROM messages 
+      WHERE latitude >= ? AND latitude <= ? AND longitude >= ? AND longitude <= ?
+    `;
+    const messagesResult = await client.execute(messagesQuery, [
+      range.minLat,
+      range.maxLat,
+      range.minLon,
+      range.maxLon,
+    ]);
+
+    return new Response(JSON.stringify(messagesResult.rows), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    
+  } catch (error) {
+    console.error('Error fetching messages:', error);
+    return new Response('Failed to fetch messages', { status: 500 });
+  }
+}
+
+// Generate a longtiude and latitude range for the query
+export function getQueryRange(latitude: number, longitude: number, radius: number) {
+  const R = 6371; // Earth's radius in km
+  const latRad = latitude * Math.PI / 180;
+  const lonRad = longitude * Math.PI / 180;
+  const rad = radius / R;
+  
+  const minLat = latRad - rad;
+  const maxLat = latRad + rad;
+  const deltaLon = Math.asin(Math.sin(rad) / Math.cos(latRad));
+  
+  const minLon = lonRad - deltaLon;
+  const maxLon = lonRad + deltaLon;
+  
+  return {
+    minLat: minLat * 180 / Math.PI,
+    maxLat: maxLat * 180 / Math.PI,
+    minLon: minLon * 180 / Math.PI,
+    maxLon: maxLon * 180 / Math.PI
+  };
+}
+
+
 bun.serve({
   port: 3000,
   async fetch(req) {
@@ -112,6 +238,10 @@ bun.serve({
     if (url.pathname === '/login') {
       const { deviceId, pinHash } = await req.json();
       return loginUser(deviceId, pinHash);
+    }
+    if (url.pathname === '/update-localization') {
+      const { deviceId, latitude, longitude } = await req.json();
+      return updateLocalization(deviceId, latitude, longitude);
     }
     return new Response(null, { status: 404 });
   },

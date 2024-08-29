@@ -22,3 +22,10 @@ timestamp TIMESTAMP,
 latitude DOUBLE,
 longitude DOUBLE
 );
+
+CREATE TABLE IF NOT EXISTS current_localizations (
+  device_id TEXT PRIMARY KEY,
+  latitude DOUBLE,
+  longitude DOUBLE,
+  timestamp TIMESTAMP 
+);

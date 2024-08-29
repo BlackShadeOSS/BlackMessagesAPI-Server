@@ -1,17 +1,26 @@
 {
-  "name": "blackmessagesapi-server",
-  "module": "index.ts",
-  "type": "module",
-  "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5.0.0"
-  },
-  "dependencies": {
-    "@types/dotenv": "^8.2.0",
-    "cassandra-driver": "^4.7.2",
-    "crypto": "^1.0.1",
-    "dotenv": "^16.4.5"
-  }
+    "name": "blackmessagesapi-server",
+    "module": "index.ts",
+    "type": "module",
+    "devDependencies": {
+        "@types/bun": "latest"
+    },
+    "peerDependencies": {
+        "typescript": "^5.0.0"
+    },
+    "dependencies": {
+        "@types/chai": "^4.3.19",
+        "@types/dotenv": "^8.2.0",
+        "@types/jest": "^29.5.12",
+        "@types/mocha": "^10.0.7",
+        "@types/supertest": "^6.0.2",
+        "bun": "^1.1.26",
+        "cassandra-driver": "^4.7.2",
+        "chai": "^5.1.1",
+        "crypto": "^1.0.1",
+        "dotenv": "^16.4.5",
+        "jest": "^29.7.0",
+        "mocha": "^10.7.3",
+        "supertest": "^7.0.0"
+    }
 }

@@ -23,19 +23,24 @@ const isDevMode = true
     const id = randomUUID(); // Generate a UUID for the message ID
     const timestamp = Date.now(); // Get current timestamp in milliseconds
 
-    const query = `
-    INSERT INTO messages (message_id, sender, message_content, timestamp, latitude, longitude)
-    VALUES (?, ?, ?, ?, ?, ?);
-    `;
+    const ttlSeconds = 30; // Set TTL to 30 seconds
 
+    const query = `
+      INSERT INTO messages (message_id, sender, message_content, timestamp, latitude, longitude)
+      VALUES (?, ?, ?, ?, ?, ?)
+      USING TTL ${ttlSeconds};
+    `;
+    
     await client.execute(query, [
       id,
       sender,
       message,
       timestamp,
       latitude,
-      longitude
+      longitude,
     ]);
+    
+
     return new Response('Message sent successfully', { status: 201 });
   } catch (error) {
     console.error('Error creating message:', error);
@@ -216,15 +221,30 @@ function generateRandomUsername(): string {
     // 3. Fetch messages near the device location
     const range = getQueryRange(deviceLatitude, deviceLongitude, 0.5); // 500m radius
     const messagesQuery = `
-      SELECT * FROM messages 
-      WHERE latitude >= ? AND latitude <= ? AND longitude >= ? AND longitude <= ? ALLOW FILTERING
+    SELECT message_id, sender, message_content, timestamp, latitude, longitude // Include timestamp here
+    FROM messages 
+    WHERE latitude >= ? AND latitude <= ? AND longitude >= ? AND longitude <= ? ALLOW FILTERING
     `;
+
     const messagesResult = await client.execute(messagesQuery, [
       range.minLat,
       range.maxLat,
       range.minLon,
       range.maxLon,
     ]);
+
+    if (isDevMode) {
+      console.log('Messages:', messagesResult.rows
+        .map((row: any) => ({
+          message_id: row.message_id,
+          sender: row.sender,
+          message_content: row.message_content,
+          latitude: row.latitude,
+          longitude: row.longitude,
+          timestamp: row.timestamp,
+        }))
+      );
+    }
 
     return new Response(JSON.stringify(messagesResult.rows), {
       status: 200,
@@ -258,24 +278,6 @@ function generateRandomUsername(): string {
     maxLon: maxLon * 180 / Math.PI
   };
 }
-
- async function deleteOldMessages() {
-  try {
-    const thirtySecondsAgo = Date.now() - (30 * 1000); // Calculate timestamp for 30 seconds ago
-
-    const deleteQuery = `
-      DELETE FROM messages 
-      WHERE timestamp < ? ALLOW FILTERING
-    `;
-
-    await client.execute(deleteQuery, [thirtySecondsAgo]);
-
-    console.log('Old messages deleted successfully.');
-  } catch (error) {
-    console.error('Error deleting old messages:', error);
-  }
-}
-
 
 bun.serve({
   port: 3000,
@@ -329,9 +331,5 @@ async function connectToScylla() {
 }
 
 connectToScylla(); // Connect on start
-
-setInterval(() => {
-  deleteOldMessages(); 
-}, 1000*5); // Delete old messages every 5 seconds
 
 console.log('Server running on http://localhost:3000');

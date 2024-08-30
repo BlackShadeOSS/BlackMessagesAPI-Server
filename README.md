@@ -1,15 +1,5 @@
 # blackmessagesapi-server
 
-To install dependencies:
+This is a REST API server for BlackMessages App.
 
-```bash
-bun install
-```
-
-To run:
-
-```bash
-bun run index.ts
-```
-
-This project was created using `bun init` in bun v1.1.20. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
+It runs using bun and connects to ScyllaDB cluster
